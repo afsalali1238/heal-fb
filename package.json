@@ -10,6 +10,6 @@
     "clean": "rm -rf build dist"
   },
   "dependencies": {
-    "fable-library": "*"
+    "@fable-org/fable-library-js": "^2.6.0"
   }
 }
