@@ -110,7 +110,7 @@ let private gateSection (blocking : bool) : string =
 /// Page stylesheet. Plain string, deliberately NOT interpolated:
 /// CSS braces must stay braces, so this never goes inside $"...".
 let private pageCss = """
-:root { color-scheme: light; --scale: 1; --brand: #1f8ac9; --ink: #1f2937; --ink-2: #475569; --line: #e2e8f0; --bg: #ffffff; --soft: #f8fafc; --warn-bg: #fef3c7; --warn: #92400e; --go-bg: #dcfce7; --go: #15803d; }
+:root { color-scheme: light dark; --fig-ink: #1f2937; --fig-faint: #cbd5e1; --fig-brand: #1f8ac9; --scale: 1; --brand: #1f8ac9; --ink: #1f2937; --ink-2: #475569; --line: #e2e8f0; --bg: #ffffff; --soft: #f8fafc; --warn-bg: #fef3c7; --warn: #92400e; --go-bg: #dcfce7; --go: #15803d; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: calc(17px * var(--scale, 1))/1.55 system-ui, sans-serif; }
 .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 64px; }
 .banner { background: var(--warn-bg); color: var(--warn); text-align: center; font-size: 14px; padding: 10px 16px; }
@@ -205,6 +205,20 @@ h3 { font-size: calc(20px * var(--scale, 1)); }
 .edu { border-left: 4px solid var(--brand); background: var(--soft); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 16px 0 0; }
 .edu b { display: block; margin-bottom: 2px; }
 .edu p { margin: 0; color: var(--ink-2); }
+.f-ink { fill: none; stroke: var(--fig-ink); }
+.f-inkfill { fill: var(--fig-ink); stroke: none; }
+.f-faint { stroke: var(--fig-faint); }
+.f-brand { stroke: var(--fig-brand); }
+.f-brandfill { fill: var(--fig-brand); stroke: none; }
+@media (prefers-color-scheme: dark) {
+:root { color-scheme: dark; --brand: #38bdf8; --ink: #e2e8f0; --ink-2: #94a3b8; --line: #334155; --bg: #0f172a; --soft: #1e293b; --warn-bg: #451a03; --warn: #fcd34d; --go-bg: #052e16; --go: #86efac; --fig-ink: #e2e8f0; --fig-faint: #475569; --fig-brand: #38bdf8; }
+header.top { background: #0369a1; }
+.chip { background: #0c4a6e; color: #7dd3fc; }
+.demoband { background: #172554; color: #93c5fd; border-bottom-color: #1e3a8a; }
+.trigger, .timer-row button, .share-btn, .done-toggle { background: var(--soft); color: var(--ink); }
+.search-box { background: var(--bg); }
+.howto li::before { background: #0c4a6e; color: #7dd3fc; }
+}
 .foot { max-width: 760px; margin: 0 auto; padding: 0 20px 40px; }
 .foot a { color: var(--ink-2); font-size: 14px; }
 .badge { display: inline-block; font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--warn); background: var(--warn-bg); border: 1px solid #fcd34d; border-radius: 999px; padding: 4px 11px; }

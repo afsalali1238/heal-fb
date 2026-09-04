@@ -123,26 +123,23 @@ let figureSvg (fig : Figure) (arrow : Arrow option) (label : string) : string =
     let (minX, minY, w, h) = figureBounds fig arrow
     let (hx, hy) = fig.HeadC
     let (ndx, ndy) = fig.HandC
-    let ink = "#1f2937"
-    let faint = "#cbd5e1"
-    let brand = "#1f8ac9"
     let arrowSvg =
         match arrow with
         | Some a ->
             let (x1, y1) = a.From
             let (x2, y2) = a.To
-            $"""<line x1="{r1 x1}" y1="{r1 y1}" x2="{r1 x2}" y2="{r1 y2}" stroke="{brand}" stroke-width="3.5" stroke-linecap="round" />
-<circle cx="{r1 x2}" cy="{r1 y2}" r="4.5" fill="{brand}" />"""
+            $"""<line x1="{r1 x1}" y1="{r1 y1}" x2="{r1 x2}" y2="{r1 y2}" class="f-brand" stroke-width="3.5" stroke-linecap="round" />
+<circle cx="{r1 x2}" cy="{r1 y2}" r="4.5" class="f-brandfill" />"""
         | None -> ""
     let groundY = List.max (fig.Leg |> List.map snd) + 16.0
     $"""<svg viewBox="{r1 minX} {r1 minY} {r1 w} {r1 h}" role="img" aria-label="{label}" xmlns="http://www.w3.org/2000/svg">
 <title>{label}</title>
-<line x1="{r1 (minX + 6.0)}" y1="{r1 groundY}" x2="{r1 (minX + w - 6.0)}" y2="{r1 groundY}" stroke="{faint}" stroke-width="2" stroke-linecap="round" />
-<polyline points="{fig.Leg |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-<polyline points="{fig.Foot |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
-<polyline points="{fig.Spine |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-<polyline points="{fig.Arm |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
-<circle cx="{r1 ndx}" cy="{r1 ndy}" r="4.5" fill="{ink}" />
-<circle cx="{r1 hx}" cy="{r1 hy}" r="11" fill="none" stroke="{ink}" stroke-width="4" />
+<line x1="{r1 (minX + 6.0)}" y1="{r1 groundY}" x2="{r1 (minX + w - 6.0)}" y2="{r1 groundY}" class="f-faint" stroke-width="2" stroke-linecap="round" />
+<polyline points="{fig.Leg |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" class="f-ink" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+<polyline points="{fig.Foot |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" class="f-ink" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+<polyline points="{fig.Spine |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" class="f-ink" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+<polyline points="{fig.Arm |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" class="f-ink" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+<circle cx="{r1 ndx}" cy="{r1 ndy}" r="4.5" class="f-inkfill" />
+<circle cx="{r1 hx}" cy="{r1 hy}" r="11" fill="none" class="f-ink" stroke-width="4" />
 {arrowSvg}
 </svg>"""
