@@ -26,7 +26,7 @@
   overlay.className = 'search-overlay';
   overlay.hidden = true;
   overlay.innerHTML =
-    '<div class="search-box" role="dialog" aria-modal="true" aria-label="Search the library">' +
+    '<div class="search-box" role="dialog" aria-modal="true" aria-label="Search dialog">' +
     '<input type="search" placeholder="Search areas and exercises" aria-label="Search areas and exercises">' +
     '<ul></ul>' +
     '<button type="button">Close</button>' +
