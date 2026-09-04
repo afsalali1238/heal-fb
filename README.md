@@ -59,6 +59,14 @@ touching `physio-fable/**` and uploads `dist/` as an artifact.
 - Slice 4 (landed): hold timers, device-local completion marks, text-size
   control, client search over an F#-authored index, share-link buttons,
   clinician review gallery. Islands are hand-written JS driven by
-  F#-rendered data attributes — no dead controls without JS. QR codes wait
-  for a canonical public domain (a QR of a relative URL is useless).
+  F#-rendered data attributes — no dead controls without JS.
+- Slice 5 (landed): per-area education notes, legal notice, 404 with a way
+  home, dedicated gate-first locator route (blocking island mode), home as
+  a funnel, zero-empty-slots assertion on built output.
+
+Remaining (needs humans or a deploy, not more code): clinician review +
+countersign of all content and figures; a canonical public domain (unlocks
+QR codes, sitemap, absolute share URLs); real-browser pass incl. dark mode
+and no-JS run-through; deciding this line's future vs the Astro app
+(merge, replace, or retire one).
 - Slice 5: clinician review gallery; search; share/QR.

@@ -18,7 +18,7 @@ for (const spec of ['../build/App.js', '../build/src/App.js']) {
     console.log(`not at ${spec} (${e.code ?? e.message})`);
   }
 }
-for (const fn of ['renderHome', 'renderArea', 'renderGallery', 'areaRoutes', 'validateAll']) {
+for (const fn of ['renderHome', 'renderArea', 'renderGallery', 'renderLegal', 'renderFindMyArea', 'renderNotFound', 'areaRoutes', 'validateAll']) {
   if (!loaded || typeof loaded[fn] !== 'function') {
     console.error(`${fn}() not exported; tried: ${tried.join(', ')} (exports: ${loaded ? Object.keys(loaded).join(', ') : 'none'})`);
     process.exit(1);
@@ -47,8 +47,28 @@ const gal = new URL('gallery/', dist);
 mkdirSync(gal, { recursive: true });
 writeFileSync(new URL('index.html', gal), loaded.renderGallery());
 pages += 1;
+// Legal notice, gate-first locator, and a 404 with a way home.
+for (const route of ['legal', 'find-my-area']) {
+  const dir = new URL(`${route}/`, dist);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    new URL('index.html', dir),
+    route === 'legal' ? loaded.renderLegal() : loaded.renderFindMyArea(),
+  );
+  pages += 1;
+}
+writeFileSync(new URL('404.html', dist), loaded.renderNotFound());
+pages += 1;
 // Client islands: hand-written, content-free, copied as-is.
 for (const js of ['gate.js', 'timers.js', 'done.js', 'share.js', 'textsize.js', 'search.js']) {
   copyFileSync(new URL(`./${js}`, import.meta.url), new URL(js, dist));
 }
 console.log(`wrote ${pages} pages + 6 islands`);
+// Patient routes must never contain an empty illustration slot.
+const { execSync } = await import('node:child_process');
+const slots = execSync("grep -ro 'class=\"slot\"' . || true", { cwd: dist }).toString().trim();
+if (slots.length > 0) {
+  console.error(`EMPTY SLOTS ON PATIENT ROUTES:\n${slots}`);
+  process.exit(1);
+}
+console.log('zero empty illustration slots asserted');

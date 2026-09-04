@@ -42,4 +42,7 @@ type Item =
 type Area =
     { Id : string
       Name : string
-      Lede : string }
+      Lede : string
+      /// One short education note. Draft until a clinician reviews it,
+      /// like everything else in Content.
+      Education : string }

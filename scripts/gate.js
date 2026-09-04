@@ -19,6 +19,13 @@
     const cleared = gate.querySelector('[data-cleared]');
     if (!list || !stop || !stopTitle || !stopMessage || !cleared) continue;
 
+    // Blocking mode (locator route): the chooser below stays hidden until
+    // the gate clears. Without JS nothing hides — the static list shows.
+    const gated = [...document.querySelectorAll('[data-gated]')];
+    const blocking = gate.hasAttribute('data-blocking') && gated.length > 0;
+    if (blocking) gated.forEach((el) => {
+      el.hidden = true;
+    });
     const showStop = (title, message) => {
       stopTitle.textContent = title;
       stopMessage.textContent = message;
@@ -29,6 +36,9 @@
     const showCleared = () => {
       stop.hidden = true;
       cleared.hidden = false;
+      if (blocking) gated.forEach((el) => {
+        el.hidden = false;
+      });
     };
 
     // Upgrade each static list item into a real button, keeping its data.

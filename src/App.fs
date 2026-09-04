@@ -88,13 +88,14 @@ let private itemCard (item : Item) : string =
 /// Safety gate markup. Every trigger carries its own stop copy as data
 /// attributes so the client island (scripts/gate.js) needs no duplicated
 /// strings; without JS this renders as an honest static list.
-let private gateSection () : string =
+let private gateSection (blocking : bool) : string =
+    let blockingAttr = if blocking then " data-blocking" else ""
     let lis =
         triggers
         |> List.map (fun t ->
             $"""<li data-id="{t.Id}" data-title="{attrEsc t.StopTitle}" data-message="{attrEsc t.StopMessage}">{esc t.Label}</li>""")
         |> String.concat ""
-    $"""<section class="gate" data-gate>
+    $"""<section class="gate" data-gate{blockingAttr}>
 <p class="step">Before you start</p>
 <h2>Do any of these apply to you right now?</h2>
 <ul data-triggers>{lis}</ul>
@@ -197,6 +198,15 @@ h3 { font-size: calc(20px * var(--scale, 1)); }
 .gal-pair svg { width: 100%; height: auto; display: block; }
 .gal-pair figcaption { text-align: center; color: var(--ink-2); font-size: 13px; margin-top: 4px; }
 .gal-meta { color: var(--ink-2); font-size: 12.5px; font-family: ui-monospace, monospace; margin: 10px 0 0; }
+.cta { display: block; text-align: center; background: var(--brand); color: #fff; font-weight: 700; font-size: calc(19px * var(--scale, 1)); border-radius: 12px; padding: 16px 20px; text-decoration: none; margin-top: 18px; }
+.howto { display: grid; gap: 10px; margin: 20px 0 0; padding: 0; list-style: none; counter-reset: step; }
+.howto li { counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; }
+.howto li::before { content: counter(step); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e0f2fe; color: #0369a1; font-weight: 700; }
+.edu { border-left: 4px solid var(--brand); background: var(--soft); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 16px 0 0; }
+.edu b { display: block; margin-bottom: 2px; }
+.edu p { margin: 0; color: var(--ink-2); }
+.foot { max-width: 760px; margin: 0 auto; padding: 0 20px 40px; }
+.foot a { color: var(--ink-2); font-size: 14px; }
 .badge { display: inline-block; font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--warn); background: var(--warn-bg); border: 1px solid #fcd34d; border-radius: 999px; padding: 4px 11px; }
 """
 
@@ -263,6 +273,7 @@ let private layout (title : string) (depth : int) (scripts : string list) (body 
 <main class="wrap">
 {body}
 </main>
+<footer class="foot"><a href="{prefix}legal/">Important notice — read before exercising</a></footer>
 {indexScript ()}
 {tags}
 </body>
@@ -276,16 +287,55 @@ let private areaCard (area : Area) : string =
 <div><h3>{esc area.Name}</h3><p>{esc area.Lede}</p><span class="n">{count} {itemWord}</span></div>
 </a>"""
 
-/// Home page: banner, gate, area grid.
+/// Home page: the front door. One job — send the patient to the locator.
 let renderHome () : string =
-    let cards = areas |> List.map areaCard |> String.concat ""
     let body =
         $"""<h1>Exercises and stretches</h1>
-<p class="lede">Choose the body area your physiotherapist pointed to. Follow only what they went through with you.</p>
-{gateSection ()}
+<p class="lede">Your physiotherapist pointed to a body area and gave you movements for it. This library holds the instructions, pictures and timers — start by finding your area.</p>
+<a class="cta" href="find-my-area/">Find my body area</a>
+<ol class="howto">
+<li>Check the safety list — it comes first, every time.</li>
+<li>Choose the area your physiotherapist pointed to.</li>
+<li>Follow only the movements they went through with you.</li>
+</ol>"""
+    layout "Physiotherapy patient library" 0 [ "textsize.js"; "search.js" ] body
+
+/// Locator route: blocking safety gate, then the area grid. The grid is
+/// marked data-gated so the island keeps it hidden until the gate clears;
+/// without JS it simply shows, with the static gate copy above it.
+let renderFindMyArea () : string =
+    let cards = areas |> List.map areaCard |> String.concat ""
+    let body =
+        $"""<a class="back" href="../">← Home</a>
+<h1>Find your body area</h1>
+<p class="lede">First the safety check, then choose the area your physiotherapist pointed to.</p>
+{gateSection true}
+<div data-gated>
 <div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
-<div class="acards">{cards}</div>"""
-    layout "Choose a body area" 0 [ "gate.js"; "textsize.js"; "search.js" ] body
+<div class="acards">{cards}</div>
+</div>"""
+    layout "Find your body area" 1 [ "gate.js"; "textsize.js"; "search.js" ] body
+
+/// Legal notice: what this site is, what it is not, and what it remembers.
+let renderLegal () : string =
+    let body =
+        $"""<a class="back" href="../">← Home</a>
+<h1>Important notice</h1>
+<p class="lede">Please read this before using the exercises.</p>
+<div class="edu"><b>Not medical advice</b><p>These pages support — never replace — your physiotherapist's instructions. They do not diagnose anything.</p></div>
+<div class="edu"><b>Stop rules</b><p>Stop any movement that causes sharp pain, dizziness, tingling, or pain spreading down a limb. If a red-flag trigger applies to you, do not use the exercises that day.</p></div>
+<div class="edu"><b>Your data stays yours</b><p>This site has no accounts and sends nothing anywhere. It remembers two preferences in your own browser only: text size and which items you marked done. Clearing your browser data removes them.</p></div>
+<div class="edu"><b>Draft content</b><p>Every exercise text and illustration here is a draft awaiting clinician review. Follow only what your physiotherapist personally went through with you.</p></div>
+<div class="edu"><b>Emergencies</b><p>Chest pain, trouble breathing, new numbness or weakness, or fainting are emergencies — seek urgent care, do not browse exercises.</p></div>"""
+    layout "Important notice" 1 [ "textsize.js" ] body
+
+/// 404: no dead ends — every wrong turn offers the way home.
+let renderNotFound () : string =
+    let body =
+        $"""<h1>That page is not here</h1>
+<p class="lede">The link may be old or mistyped. Your exercises are one tap away.</p>
+<a class="cta" href="/">All areas</a>"""
+    layout "Page not found" 0 [ "textsize.js" ] body
 
 /// One area page. Unknown ids fail the build loudly, never a blank page.
 let renderArea (areaId : string) : string =
@@ -298,8 +348,9 @@ let renderArea (areaId : string) : string =
             $"""<a class="back" href="../">← All areas</a>
 <h1>{esc area.Name}</h1>
 <p class="lede">{esc area.Lede}</p>
+<div class="edu"><b>Good to know</b><p>{esc area.Education}</p></div>
 <div data-share-area></div>
-{gateSection ()}
+{gateSection false}
 <div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
 <p class="progress" data-progress role="status"></p>
 {cards}"""
