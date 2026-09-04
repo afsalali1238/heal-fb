@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "scripts": {
     "fable": "fable Client.fsproj --outDir build",
-    "render": "node scripts/render.mjs",
+    "render": "node scripts/render.mjs  # home + 8 area pages + gate.js",
     "build": "npm run fable && npm run render",
     "clean": "rm -rf build dist"
   },

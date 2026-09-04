@@ -52,8 +52,9 @@ touching `physio-fable/**` and uploads `dist/` as an artifact.
 - Slice 2 (landed): all 8 areas + 21 items; per-item start→end pose specs
   with auto movement arrows; figure validation gate in F# that runs before
   every render (missing/orphan specs, angle ranges, bounds, arrow length).
-- Slice 3: routing (one static file per area/section), area thumbnails from
-  the same geometry.
-- Slice 4: client islands compiled from F# (timers, completion marks,
-  safety gate) with no-JS fallbacks.
+- Slice 3 (landed): routing — home plus one static file per area;
+  thumbnails drawn from the same figure geometry; first client island
+  (safety gate: F#-rendered data attributes upgraded by hand-written JS,
+  honest static list without JS).
+- Slice 4: timers, completion marks, search, share/QR.
 - Slice 5: clinician review gallery; search; share/QR.

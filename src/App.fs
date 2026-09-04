@@ -1,9 +1,9 @@
 /// Page assembly: content + specs + figures -> static HTML documents.
 ///
 /// This module is the seam the static-site generator calls (see
-/// scripts/render.mjs). It returns plain strings — no framework, no
-/// runtime — so the patient gets static HTML with nothing to download
-/// beyond it.
+/// scripts/render.mjs): `areaRoutes` lists the routes, `renderHome` and
+/// `renderArea` return plain strings. No framework, no runtime — patients
+/// get static files with nothing to download beyond them.
 module Physio.App
 
 open Physio.Domain
@@ -16,9 +16,15 @@ open Physio.Checks
 let private esc (s : string) : string =
     s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")
 
+/// Attribute escaping: element escaping plus double quotes.
+let private attrEsc (s : string) : string = (esc s).Replace("\"", "&quot;")
+
 /// Build-time gate, re-exported so the render script fails the build on
 /// any figure problem before writing a single file.
 let validateAll () : GateReport = Checks.validateAll ()
+
+/// All area routes the generator must write.
+let areaRoutes () : string list = areas |> List.map (fun a -> a.Id)
 
 let private figureFor (id : string) : Figure * Arrow =
     match specFor id with
@@ -26,6 +32,16 @@ let private figureFor (id : string) : Figure * Arrow =
     | Some spec ->
         let fig = buildFigure spec.End
         fig, arrowFor spec
+
+/// Area thumbnail: the first item's end-range figure, drawn from the same
+/// geometry as every other picture, so it can never disagree with them.
+let private thumbnailFor (areaId : string) : string =
+    match itemsForArea areaId with
+    | [] -> ""
+    | first :: _ ->
+        let fig, _ = figureFor first.Id
+        let art = figureSvg fig None $"{first.AreaId} area illustration"
+        $"""<span class="thumb" aria-hidden="true">{art}</span>"""
 
 let private optRow (label : string) (fmt : int -> string) (value : int option) : string =
     match value with
@@ -64,26 +80,25 @@ let private itemCard (item : Item) : string =
 </div>
 </article>"""
 
-let private areaSection (area : Area) : string =
-    let cards =
-        itemsForArea area.Id |> List.map itemCard |> String.concat ""
-    let count = itemsForArea area.Id |> List.length
-    $"""<section class="area" id="area-{area.Id}">
-<h2>{esc area.Name} <span class="count">{count}</span></h2>
-<p class="lede">{esc area.Lede}</p>
-{cards}
-</section>"""
-
-let private gateDraft () : string =
+/// Safety gate markup. Every trigger carries its own stop copy as data
+/// attributes so the client island (scripts/gate.js) needs no duplicated
+/// strings; without JS this renders as an honest static list.
+let private gateSection () : string =
     let lis =
         triggers
-        |> List.map (fun t -> $"""<li>{esc t.Label}</li>""")
+        |> List.map (fun t ->
+            $"""<li data-id="{t.Id}" data-title="{attrEsc t.StopTitle}" data-message="{attrEsc t.StopMessage}">{esc t.Label}</li>""")
         |> String.concat ""
-    $"""<section class="gate">
+    $"""<section class="gate" data-gate>
 <p class="step">Before you start</p>
 <h2>Do any of these apply to you right now?</h2>
-<ul>{lis}</ul>
-<p class="gate-note">Answering nothing continues. Anything else — including “I’m not sure” — stops and shows a stop screen instead of exercises. (Static draft of the gate; the interactive version arrives with client scripting.)</p>
+<ul data-triggers>{lis}</ul>
+<div class="stop" data-stop hidden>
+<h3 data-stop-title tabindex="-1"></h3>
+<p data-stop-message></p>
+</div>
+<p class="cleared" data-cleared hidden>None of these apply — you can continue to the exercises below.</p>
+<p class="gate-note">These need a person, not a web page. If any of them describe you, do not use the exercises today.</p>
 </section>"""
 
 /// Page stylesheet. Plain string, deliberately NOT interpolated:
@@ -97,16 +112,35 @@ header.top { background: var(--brand); color: #fff; padding: 14px 20px; }
 header.top b { display: block; font-size: 12px; letter-spacing: .15em; font-weight: 500; opacity: .8; }
 header.top span { font-size: 20px; font-weight: 700; }
 .demoband { background: #eff6ff; color: #1d4ed8; border-bottom: 1px solid #bfdbfe; padding: 10px 20px; font-size: 14px; }
-h1 { font-size: clamp(30px, 7vw, 40px); letter-spacing: -.02em; margin: 26px 0 8px; }
+.back { display: inline-block; margin-top: 18px; color: var(--brand); font-weight: 600; }
+h1 { font-size: clamp(30px, 7vw, 40px); letter-spacing: -.02em; margin: 14px 0 8px; }
 .lede { color: var(--ink-2); max-width: 56ch; }
-.area h2 { font-size: 27px; letter-spacing: -.015em; margin: 34px 0 6px; padding-top: 22px; border-top: 1px solid var(--line); }
+.area h2, .acard h3 { letter-spacing: -.015em; }
+.area h2 { font-size: 27px; margin: 34px 0 6px; padding-top: 22px; border-top: 1px solid var(--line); }
 .count { font-size: 14px; color: var(--ink-2); font-weight: 400; }
 .starthere { background: var(--go-bg); color: var(--go); border-radius: 12px; padding: 14px 17px; margin: 20px 0; }
 .gate { border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 22px 0; }
 .step { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 6px; }
 .gate h2 { margin: 0 0 10px; font-size: 24px; }
-.gate ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.gate ul { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 7px; }
+.gate li { margin: 0; padding: 0; }
+.trigger { width: 100%; text-align: left; cursor: pointer; background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 11px; padding: 13px 15px; min-height: 48px; font-size: 15.5px; line-height: 1.4; }
+.trigger:hover { border-color: var(--warn); color: var(--warn); }
+.gate-clear { display: block; width: 100%; cursor: pointer; min-height: 56px; background: var(--brand); color: #fff; border: 1px solid var(--brand); border-radius: 12px; padding: 14px 20px; font-weight: 700; font-size: 17px; margin-top: 12px; }
+.stop { background: var(--warn-bg); color: var(--warn); border: 1px solid currentColor; border-radius: 12px; padding: 16px 18px; margin-top: 14px; }
+.stop h3 { margin: 0 0 6px; font-size: 20px; }
+.stop h3:focus { outline: none; }
+.stop p { margin: 0; }
+.cleared { background: var(--go-bg); color: var(--go); border-radius: 10px; padding: 11px 13px; margin: 14px 0 0; }
 .gate-note { color: var(--ink-2); font-size: 14.5px; }
+.acards { display: grid; gap: 12px; margin-top: 18px; }
+.acard { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; text-decoration: none; color: inherit; }
+.acard:hover { border-color: var(--brand); }
+.acard h3 { margin: 0 0 4px; font-size: 20px; }
+.acard p { margin: 0 0 6px; color: var(--ink-2); font-size: 15px; }
+.acard .n { font-size: 12.5px; color: var(--ink-2); }
+.thumb { display: block; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.thumb svg { width: 100%; height: auto; display: block; }
 .item { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin: 0 0 18px; }
 .fig { background: var(--soft); border-bottom: 1px solid var(--line); padding: 14px; }
 .fig svg { width: 100%; max-height: 300px; display: block; }
@@ -125,17 +159,13 @@ h1 { font-size: clamp(30px, 7vw, 40px); letter-spacing: -.02em; margin: 26px 0 8
 .safety { margin: 0; background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 11px 13px; font-size: 15px; }
 """
 
-/// The whole demonstration library on one page: every area, every item.
-/// Routing (one file per area) arrives as slice 3; this slice proves the
-/// content model, specs, gate and renderer scale past the first area.
-let renderPage () : string =
-    let sections = areas |> List.map areaSection |> String.concat ""
+let private layout (title : string) (scriptPath : string) (body : string) : string =
     $"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Patient Library (Fable demo)</title>
+<title>{title} | Physiotherapy Patient Library (Fable demo)</title>
 <style>{pageCss}</style>
 </head>
 <body>
@@ -143,11 +173,46 @@ let renderPage () : string =
 <header class="top"><b>PHYSIOTHERAPY</b><span>Patient Library</span></header>
 <div class="demoband">Fable demonstration build — content and figures are drafts awaiting clinician review. Not for patient use.</div>
 <main class="wrap">
-<h1>Exercises and stretches</h1>
-<p class="lede">Follow only what your physiotherapist went through with you. Stop if you feel pain.</p>
-{gateDraft ()}
-<div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
-{sections}
+{body}
 </main>
+<script src="{scriptPath}" defer></script>
 </body>
 </html>"""
+
+let private areaCard (area : Area) : string =
+    let count = itemsForArea area.Id |> List.length
+    let itemWord = if count = 1 then "item" else "items"
+    $"""<a class="acard" href="{area.Id}/">
+{thumbnailFor area.Id}
+<div><h3>{esc area.Name}</h3><p>{esc area.Lede}</p><span class="n">{count} {itemWord}</span></div>
+</a>"""
+
+/// Home page: banner, gate, area grid.
+let renderHome () : string =
+    let cards = areas |> List.map areaCard |> String.concat ""
+    let body =
+        $"""<h1>Exercises and stretches</h1>
+<p class="lede">Choose the body area your physiotherapist pointed to. Follow only what they went through with you.</p>
+{gateSection ()}
+<div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
+<div class="acards">{cards}</div>"""
+    layout "Choose a body area" "gate.js" body
+
+/// One area page. Unknown ids fail the build loudly, never a blank page.
+let renderArea (areaId : string) : string =
+    match areas |> List.tryFind (fun a -> a.Id = areaId) with
+    | None -> failwith $"Unknown area \"{areaId}\"."
+    | Some area ->
+        let cards =
+            itemsForArea area.Id |> List.map itemCard |> String.concat ""
+        let body =
+            $"""<a class="back" href="../">← All areas</a>
+<h1>{esc area.Name}</h1>
+<p class="lede">{esc area.Lede}</p>
+{gateSection ()}
+<div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
+{cards}"""
+        layout area.Name "../gate.js" body
+
+/// Backwards-compatible single-page render (kept for the demo artifact).
+let renderPage () : string = renderHome ()
