@@ -203,6 +203,43 @@ h3 { font-size: calc(20px * var(--scale, 1)); }
 /// Pre-paint scale restore: invisible, unconditional, safe without JS UI.
 let private scaleInline = """<script>try{var s=localStorage.getItem("physio-fable-scale");if(s){document.documentElement.style.setProperty("--scale",s)}}catch(e){}</script>"""
 
+/// JSON string escaping for the search index (built by concatenation, so
+/// no brace-escaping hazards at all).
+let private jstr (s : string) : string =
+    "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ") + "\""
+
+/// Client search index: areas + items with plain-language text. URLs are
+/// root-relative; the island resolves them per page depth.
+let searchIndex () : string =
+    let areaName (id : string) : string =
+        match areas |> List.tryFind (fun a -> a.Id = id) with
+        | Some a -> a.Name
+        | None -> failwith $"search index: unknown area \"{id}\"."
+    let secName (s : Section) : string =
+        match s with
+        | Stretching -> "Stretching"
+        | Exercise -> "Exercise"
+    let areaEntries =
+        areas
+        |> List.map (fun a ->
+            "{\"kind\":" + jstr "area" + ",\"name\":" + jstr a.Name + ",\"area\":" + jstr a.Name + ",\"text\":"
+            + jstr a.Lede + ",\"url\":" + jstr (a.Id + "/") + "}")
+    let itemEntries =
+        items
+        |> List.map (fun i ->
+            "{\"kind\":" + jstr "item" + ",\"name\":" + jstr i.Name + ",\"area\":" + jstr (areaName i.AreaId)
+            + ",\"text\":" + jstr (i.Movement + " " + i.Target) + ",\"url\":" + jstr (i.AreaId + "/#" + i.Id)
+            + ",\"section\":" + jstr (secName i.Section) + "}")
+    let json = "[" + String.concat "," (areaEntries @ itemEntries) + "]"
+    if json.Contains("</script") then
+        failwith "search index would break out of its script tag"
+    else
+        json
+
+/// Search index embedded beside the body (scripts read it, patients never see it).
+let indexScript () : string =
+    "<script type=\"application/json\" data-index>" + searchIndex () + "</scr" + "ipt>"
+
 let private layout (title : string) (depth : int) (scripts : string list) (body : string) : string =
     let prefix = if depth = 0 then "" else "../"
     let tags =
@@ -268,39 +305,6 @@ let renderArea (areaId : string) : string =
 {cards}"""
         layout area.Name 1 [ "gate.js"; "timers.js"; "done.js"; "share.js"; "textsize.js"; "search.js" ] body
 
-/// JSON string escaping for the search index (built by concatenation, so
-/// no brace-escaping hazards at all).
-let private jstr (s : string) : string =
-    "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ") + "\""
-
-/// Client search index: areas + items with plain-language text. URLs are
-/// root-relative; the island resolves them per page depth.
-let searchIndex () : string =
-    let areaName (id : string) : string =
-        match areas |> List.tryFind (fun a -> a.Id = id) with
-        | Some a -> a.Name
-        | None -> failwith $"search index: unknown area \"{id}\"."
-    let secName (s : Section) : string =
-        match s with
-        | Stretching -> "Stretching"
-        | Exercise -> "Exercise"
-    let areaEntries =
-        areas
-        |> List.map (fun a ->
-            "{\"kind\":" + jstr "area" + ",\"name\":" + jstr a.Name + ",\"area\":" + jstr a.Name + ",\"text\":"
-            + jstr a.Lede + ",\"url\":" + jstr (a.Id + "/") + "}")
-    let itemEntries =
-        items
-        |> List.map (fun i ->
-            "{\"kind\":" + jstr "item" + ",\"name\":" + jstr i.Name + ",\"area\":" + jstr (areaName i.AreaId)
-            + ",\"text\":" + jstr (i.Movement + " " + i.Target) + ",\"url\":" + jstr (i.AreaId + "/#" + i.Id)
-            + ",\"section\":" + jstr (secName i.Section) + "}")
-    let json = "[" + String.concat "," (areaEntries @ itemEntries) + "]"
-    if json.Contains("</script") then
-        failwith "search index would break out of its script tag"
-    else
-        json
-
 /// Clinician review gallery: start/end figure pairs for every item,
 /// draft-badged, noindexed. NOT a patient route.
 let renderGallery () : string =
@@ -332,9 +336,6 @@ let renderGallery () : string =
 <div class="gal-grid">{cards}</div>"""
     layout "Figure review gallery" 1 [ "textsize.js"; "search.js" ] body
 
-/// Search index embedded beside the body (scripts read it, patients never see it).
-let indexScript () : string =
-    "<script type=\"application/json\" data-index>" + searchIndex () + "</scr" + "ipt>"
 
 /// Backwards-compatible single-page render (kept for the demo artifact).
 let renderPage () : string = renderHome ()
