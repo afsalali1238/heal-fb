@@ -56,5 +56,9 @@ touching `physio-fable/**` and uploads `dist/` as an artifact.
   thumbnails drawn from the same figure geometry; first client island
   (safety gate: F#-rendered data attributes upgraded by hand-written JS,
   honest static list without JS).
-- Slice 4: timers, completion marks, search, share/QR.
+- Slice 4 (landed): hold timers, device-local completion marks, text-size
+  control, client search over an F#-authored index, share-link buttons,
+  clinician review gallery. Islands are hand-written JS driven by
+  F#-rendered data attributes — no dead controls without JS. QR codes wait
+  for a canonical public domain (a QR of a relative URL is useless).
 - Slice 5: clinician review gallery; search; share/QR.

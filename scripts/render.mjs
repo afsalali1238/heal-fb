@@ -18,9 +18,11 @@ for (const spec of ['../build/App.js', '../build/src/App.js']) {
     console.log(`not at ${spec} (${e.code ?? e.message})`);
   }
 }
-if (!loaded || typeof loaded.renderHome !== 'function' || typeof loaded.renderArea !== 'function' || typeof loaded.areaRoutes !== 'function' || typeof loaded.validateAll !== 'function') {
-  console.error(`renderHome()/renderArea()/areaRoutes()/validateAll() not exported; tried: ${tried.join(', ')}`);
-  process.exit(1);
+for (const fn of ['renderHome', 'renderArea', 'renderGallery', 'areaRoutes', 'validateAll']) {
+  if (!loaded || typeof loaded[fn] !== 'function') {
+    console.error(`${fn}() not exported; tried: ${tried.join(', ')} (exports: ${loaded ? Object.keys(loaded).join(', ') : 'none'})`);
+    process.exit(1);
+  }
 }
 
 const gate = loaded.validateAll();
@@ -40,6 +42,13 @@ for (const id of loaded.areaRoutes()) {
   writeFileSync(new URL('index.html', dir), loaded.renderArea(id));
   pages += 1;
 }
-// The safety-gate island: hand-written, content-free, copied as-is.
-copyFileSync(new URL('./gate.js', import.meta.url), new URL('gate.js', dist));
-console.log(`wrote ${pages} pages + gate.js`);
+// Clinician review gallery (draft, noindexed by content, not a patient route).
+const gal = new URL('gallery/', dist);
+mkdirSync(gal, { recursive: true });
+writeFileSync(new URL('index.html', gal), loaded.renderGallery());
+pages += 1;
+// Client islands: hand-written, content-free, copied as-is.
+for (const js of ['gate.js', 'timers.js', 'done.js', 'share.js', 'textsize.js', 'search.js']) {
+  copyFileSync(new URL(`./${js}`, import.meta.url), new URL(js, dist));
+}
+console.log(`wrote ${pages} pages + 6 islands`);
