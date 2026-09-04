@@ -49,8 +49,9 @@ touching `physio-fable/**` and uploads `dist/` as an artifact.
 
 ## Roadmap
 
-- Slice 2: all 8 areas + full item set; figure specs per item (view/support/
-  focus, not just side-standing); figure validation gate in F#.
+- Slice 2 (landed): all 8 areas + 21 items; per-item start→end pose specs
+  with auto movement arrows; figure validation gate in F# that runs before
+  every render (missing/orphan specs, angle ranges, bounds, arrow length).
 - Slice 3: routing (one static file per area/section), area thumbnails from
   the same geometry.
 - Slice 4: client islands compiled from F# (timers, completion marks,

@@ -16,8 +16,14 @@ for (const spec of ['../build/App.js', '../build/src/App.js']) {
     console.log(`not at ${spec} (${e.code ?? e.message})`);
   }
 }
-if (!loaded || typeof loaded.renderPage !== 'function') {
-  console.error(`renderPage() not exported; tried: ${tried.join(', ')}`);
+if (!loaded || typeof loaded.renderPage !== 'function' || typeof loaded.validateAll !== 'function') {
+  console.error(`renderPage()/validateAll() not exported; tried: ${tried.join(', ')}`);
+  process.exit(1);
+}
+const gate = loaded.validateAll();
+console.log(`figure gate: ${gate.Specs} specs for ${gate.Items} items`);
+if (gate.Errors.length > 0) {
+  console.error(`figure gate FAILED:\n- ${gate.Errors.join('\n- ')}`);
   process.exit(1);
 }
 mkdirSync(new URL('../dist/', import.meta.url), { recursive: true });

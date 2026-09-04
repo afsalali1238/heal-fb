@@ -4,9 +4,11 @@
 /// picture, which is the whole point — a wrong-but-confident picture is how
 /// patients learn the wrong movement.
 ///
-/// The figure is a side-view schematic: a kinematic chain for the spine, one
-/// arm, one leg, a head circle, an optional movement arrow, and a floor
-/// line. Poses are authored as small angle sets (see App), never traced.
+/// The figure is a side-view schematic built from 2D kinematic chains:
+/// spine (3 segments), one arm (2), one leg (2), a head circle with an
+/// optional postural shift, a hand dot on a wrist angle, and a foot segment
+/// on an ankle angle, plus a floor line. Every angle is absolute: 0 = up,
+/// clockwise positive, so 180 = straight down.
 module Physio.Figures
 
 type Pt = float * float
@@ -15,8 +17,12 @@ let private rad (deg : float) : float = deg * System.Math.PI / 180.0
 
 let private r1 (v : float) : string = string (System.Math.Round(v, 1))
 
-/// 2D kinematic chain. Each segment is (length, absolute angle in degrees:
-/// 0 = up, clockwise positive, so 180 = straight down).
+let finite (x : float) : bool = x = x && abs x < 1e9
+
+let finitePt ((x, y) : Pt) : bool = finite x && finite y
+
+/// 2D kinematic chain: from a start point, walk (length, absolute angle)
+/// segments.
 let chain (sx : float, sy : float) (segments : (float * float) list) : Pt list =
     let (_, rev) =
         List.fold
@@ -28,58 +34,95 @@ let chain (sx : float, sy : float) (segments : (float * float) list) : Pt list =
             segments
     (sx, sy) :: List.rev rev
 
-/// A posed side-view figure: joint chains plus head circle.
-type Pose =
+/// Authored joint angles for one pose. `HeadDx/HeadDy` is a postural glide
+/// of the head (chin tuck family); everything else is a chain angle.
+type PoseParams =
+    { Lean : float
+      ArmA1 : float
+      ArmA2 : float
+      LegA1 : float
+      LegA2 : float
+      Wrist : float
+      FootA : float
+      HeadDx : float
+      HeadDy : float }
+
+/// The neutral standing pose every arrow starts from unless a spec says
+/// the movement begins elsewhere.
+let neutralParams : PoseParams =
+    { Lean = 0.0
+      ArmA1 = 172.0
+      ArmA2 = 176.0
+      LegA1 = 178.0
+      LegA2 = 178.0
+      Wrist = 170.0
+      FootA = 95.0
+      HeadDx = 0.0
+      HeadDy = 0.0 }
+
+/// A built figure: resolved joint points ready to draw or validate.
+type Figure =
     { Spine : Pt list
       Arm : Pt list
       Leg : Pt list
-      HeadC : Pt
-      HeadR : float }
+      Foot : Pt list
+      HandC : Pt
+      HeadC : Pt }
 
-/// Standing pose from three joint angles (degrees):
-/// lean = whole-spine lean from vertical (+ = forward),
-/// armHang = arm angle from straight-down hanging (0 = hangs, 90 = forward),
-/// knee = knee bend (+ = heel swings back).
-let standing (lean : float) (armHang : float) (knee : float) : Pose =
+let buildFigure (p : PoseParams) : Figure =
     let hip = (0.0, 0.0)
-    // Hip -> mid-back -> shoulder -> neck base.
-    let spine = chain hip [ (34.0, lean); (30.0, lean); (16.0, lean - 4.0) ]
+    let spine = chain hip [ (34.0, p.Lean); (30.0, p.Lean); (16.0, p.Lean - 4.0) ]
     let shoulder = spine.[1]
     let neck = spine.[2]
-    let headC = (fst neck + 9.0, snd neck - 13.0)
-    // Shoulder -> elbow -> hand. Hanging is 180 (straight down).
-    let arm = chain shoulder [ (26.0, 180.0 - armHang); (24.0, 184.0 - armHang) ]
-    // Hip -> knee -> foot.
-    let leg = chain hip [ (38.0, 178.0); (38.0, 178.0 + knee) ]
+    let headC = (fst neck + 9.0 + p.HeadDx, snd neck - 13.0 + p.HeadDy)
+    let arm = chain shoulder [ (26.0, p.ArmA1); (24.0, p.ArmA2) ]
+    let wristEnd = arm.[2]
+    let wa = rad p.Wrist
+    let handC = (fst wristEnd + 7.0 * sin wa, snd wristEnd - 7.0 * cos wa)
+    let leg = chain hip [ (38.0, p.LegA1); (38.0, p.LegA2) ]
+    let ankle = leg.[2]
+    let fa = rad p.FootA
+    let toe = (fst ankle + 13.0 * sin fa, snd ankle - 13.0 * cos fa)
     { Spine = spine
       Arm = arm
       Leg = leg
-      HeadC = headC
-      HeadR = 11.0 }
+      Foot = [ ankle; toe ]
+      HandC = handC
+      HeadC = headC }
 
 type Arrow = { From : Pt; To : Pt }
 
-let private pts (chain : Pt list) : string =
-    chain
-    |> List.map (fun (x, y) -> $"{r1 x},{r1 y}")
-    |> String.concat " "
+let arrowLength (a : Arrow) : float =
+    let dx = fst a.To - fst a.From
+    let dy = snd a.To - snd a.From
+    sqrt (dx * dx + dy * dy)
 
-/// Full standalone SVG document for one pose. Bounds are computed from the
-/// drawn points plus padding, so the figure can never crop itself.
-let figureSvg (pose : Pose) (arrow : Arrow option) (label : string) : string =
+let private figurePoints (fig : Figure) (arrow : Arrow option) : Pt list =
     let extra =
         match arrow with
         | Some a -> [ a.From; a.To ]
         | None -> []
-    let all = pose.Spine @ pose.Arm @ pose.Leg @ [ pose.HeadC ] @ extra
+    fig.Spine @ fig.Arm @ fig.Leg @ fig.Foot @ [ fig.HandC; fig.HeadC ] @ extra
+
+/// Bounds (minX, minY, width, height) computed from the drawn points plus
+/// padding, so a figure can never crop itself.
+let figureBounds (fig : Figure) (arrow : Arrow option) : float * float * float * float =
+    let all = figurePoints fig arrow
     let xs = all |> List.map fst
     let ys = all |> List.map snd
     let pad = 26.0
+    let headPad = 13.0
     let minX = List.min xs - pad
-    let minY = List.min ys - pad - pose.HeadR
-    let w = List.max xs - List.min xs + pad * 2.0 + pose.HeadR
-    let h = List.max ys - List.min ys + pad * 2.0 + pose.HeadR * 2.0
-    let (hx, hy) = pose.HeadC
+    let minY = List.min ys - pad - headPad
+    let w = List.max xs - List.min xs + pad * 2.0 + headPad
+    let h = List.max ys - List.min ys + pad * 2.0 + headPad * 2.0
+    (minX, minY, w, h)
+
+/// Full standalone SVG document for one figure.
+let figureSvg (fig : Figure) (arrow : Arrow option) (label : string) : string =
+    let (minX, minY, w, h) = figureBounds fig arrow
+    let (hx, hy) = fig.HeadC
+    let (ndx, ndy) = fig.HandC
     let ink = "#1f2937"
     let faint = "#cbd5e1"
     let brand = "#1f8ac9"
@@ -89,14 +132,17 @@ let figureSvg (pose : Pose) (arrow : Arrow option) (label : string) : string =
             let (x1, y1) = a.From
             let (x2, y2) = a.To
             $"""<line x1="{r1 x1}" y1="{r1 y1}" x2="{r1 x2}" y2="{r1 y2}" stroke="{brand}" stroke-width="3.5" stroke-linecap="round" />
-  <circle cx="{r1 x2}" cy="{r1 y2}" r="4.5" fill="{brand}" />"""
+<circle cx="{r1 x2}" cy="{r1 y2}" r="4.5" fill="{brand}" />"""
         | None -> ""
+    let groundY = List.max (fig.Leg |> List.map snd) + 16.0
     $"""<svg viewBox="{r1 minX} {r1 minY} {r1 w} {r1 h}" role="img" aria-label="{label}" xmlns="http://www.w3.org/2000/svg">
-  <title>{label}</title>
-  <line x1="{r1 (minX + 6.0)}" y1="{r1 (List.max ys + 14.0)}" x2="{r1 (minX + w - 6.0)}" y2="{r1 (List.max ys + 14.0)}" stroke="{faint}" stroke-width="2" stroke-linecap="round" />
-  <polyline points="{pts pose.Leg}" fill="none" stroke="{ink}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-  <polyline points="{pts pose.Spine}" fill="none" stroke="{ink}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-  <polyline points="{pts pose.Arm}" fill="none" stroke="{ink}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="{r1 hx}" cy="{r1 hy}" r="{r1 pose.HeadR}" fill="none" stroke="{ink}" stroke-width="4" />
-  {arrowSvg}
+<title>{label}</title>
+<line x1="{r1 (minX + 6.0)}" y1="{r1 groundY}" x2="{r1 (minX + w - 6.0)}" y2="{r1 groundY}" stroke="{faint}" stroke-width="2" stroke-linecap="round" />
+<polyline points="{fig.Leg |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+<polyline points="{fig.Foot |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+<polyline points="{fig.Spine |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+<polyline points="{fig.Arm |> List.map (fun (x, y) -> $"{r1 x},{r1 y}") |> String.concat " "}" fill="none" stroke="{ink}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+<circle cx="{r1 ndx}" cy="{r1 ndy}" r="4.5" fill="{ink}" />
+<circle cx="{r1 hx}" cy="{r1 hy}" r="11" fill="none" stroke="{ink}" stroke-width="4" />
+{arrowSvg}
 </svg>"""
