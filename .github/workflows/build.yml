@@ -3,6 +3,7 @@ name: build
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -25,7 +26,7 @@ jobs:
         run: dotnet tool install --global fable
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build (fable + render)
         run: npm run build
