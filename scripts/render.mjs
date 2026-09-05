@@ -59,6 +59,15 @@ for (const route of ['legal', 'find-my-area']) {
 }
 writeFileSync(new URL('404.html', dist), loaded.renderNotFound());
 pages += 1;
+// Draft build: keep every crawler out until content is clinically reviewed
+// and a canonical domain is chosen. Pages also carry <meta name="robots"
+// content="noindex">. Delete both when the library is published for real.
+writeFileSync(
+  new URL('robots.txt', dist),
+  '# Draft demonstration build - not for patient use.\n'
+    + '# Remove this file (and the noindex meta tag) when published.\n'
+    + 'User-agent: *\nDisallow: /\n',
+);
 // Client islands: hand-written, content-free, copied as-is.
 for (const js of ['gate.js', 'timers.js', 'done.js', 'share.js', 'textsize.js', 'search.js']) {
   copyFileSync(new URL(`./${js}`, import.meta.url), new URL(js, dist));

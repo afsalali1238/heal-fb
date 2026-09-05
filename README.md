@@ -33,10 +33,36 @@ dotnet tool install --global fable   # once per machine; latest stable, delibera
 npm run build   # fable Client.fsproj --outDir build && node scripts/render.mjs
 ```
 
-Output: `dist/index.html` — open it directly, no server needed.
+Output: `dist/` — home plus one file per route. Open any page directly,
+no server needed.
 
-CI (`.github/workflows/fable.yml`) does exactly the above on every push
-touching `physio-fable/**` and uploads `dist/` as an artifact.
+CI (`.github/workflows/build.yml`) does exactly the above on every push
+and pull request, runs the Playwright QA pass, uploads `dist/` as an
+artifact, and fails if the committed `dist/` has drifted from the F#
+source (see "Deploying" below).
+
+## Deploying (Vercel)
+
+Vercel's build image has no .NET SDK, so the F# compile cannot run there.
+That is fine: this project's rule is that patients receive plain files and
+F# never ships to a browser. So `dist/` — the rendered static site — is
+committed, and Vercel serves it verbatim (`vercel.json` points the output
+at `dist/`, no build command).
+
+1. Import this repository at [vercel.com](https://vercel.com) → New Project.
+2. The defaults work: `vercel.json` supplies the output directory, so the
+   framework preset, build command, and install command can all stay
+   empty/unset.
+3. Deploy. Every push to `main` redeploys the committed `dist/`.
+
+Workflow when content or figures change: run `npm run build` locally (or
+take the `dist` artifact from CI), commit the refreshed `dist/`, push.
+CI fails any push where `dist/` does not match a fresh build of the F#
+source, so the deployed files can never silently disagree with the code.
+
+The draft build ships with `robots.txt` blocking crawlers and a `noindex`
+meta tag on every page — deliberate, since nothing here is clinically
+reviewed yet. Remove both when the library is published for real.
 
 ## Architecture rules (carry over from the rebuild brief)
 
@@ -64,9 +90,8 @@ touching `physio-fable/**` and uploads `dist/` as an artifact.
   home, dedicated gate-first locator route (blocking island mode), home as
   a funnel, zero-empty-slots assertion on built output.
 
-Remaining (needs humans or a deploy, not more code): clinician review +
-countersign of all content and figures; a canonical public domain (unlocks
-QR codes, sitemap, absolute share URLs); real-browser pass incl. dark mode
-and no-JS run-through; deciding this line's future vs the Astro app
-(merge, replace, or retire one).
-- Slice 5: clinician review gallery; search; share/QR.
+Remaining (needs humans, not more code): clinician review + countersign of
+all content and figures; a canonical public domain (unlocks QR codes,
+sitemap, absolute share URLs); real-browser pass incl. dark mode and no-JS
+run-through on actual devices; deciding this line's future vs the Astro
+app (merge, replace, or retire one).

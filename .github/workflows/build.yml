@@ -1,0 +1,64 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Fable
+        run: dotnet tool install --global fable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build (fable + render)
+        run: npm run build
+
+      # Vercel deploys the committed dist/ verbatim (its build image has no
+      # .NET SDK). This gate keeps that honest: if the F# source changes
+      # without dist/ being rebuilt and committed, the build fails here.
+      - name: Assert committed dist matches the build
+        run: |
+          if git ls-files dist --error-unmatch >/dev/null 2>&1; then
+            if [ -n "$(git status --porcelain dist)" ]; then
+              echo "::error::dist/ is stale — run 'npm run build' and commit dist/"
+              git status --porcelain dist
+              exit 1
+            fi
+            echo "committed dist/ matches the fresh build"
+          else
+            echo "dist/ not tracked yet — skipping drift check"
+          fi
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Runtime QA
+        run: npm run qa
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa-report.json
+        continue-on-error: true
