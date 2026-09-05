@@ -1,0 +1,4 @@
+# Draft demonstration build - not for patient use.
+# Remove this file (and the noindex meta tag) when published.
+User-agent: *
+Disallow: /
