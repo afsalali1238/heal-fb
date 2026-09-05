@@ -62,7 +62,10 @@ at `dist/`, no build command).
 
 If the project was imported earlier from the monorepo layout, clear the
 saved Root Directory (Settings → General) and set the output directory to
-`dist` — otherwise deploys look for a directory that no longer exists.
+`dist` — otherwise deploys look for a directory that no longer exists
+(this project's was `anatomy-explorer`, the old Astro app folder). After
+changing settings, push a new commit: redeploying an old deployment can
+replay that deployment's original settings.
 
 Workflow when content or figures change: edit the F# (or islands), push.
 CI rebuilds from source and commits the refreshed `dist/` itself, which
