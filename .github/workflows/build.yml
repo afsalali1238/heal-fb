@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,25 +25,42 @@ jobs:
         run: dotnet tool install --global fable
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build (fable + render)
         run: npm run build
 
       # Vercel deploys the committed dist/ verbatim (its build image has no
-      # .NET SDK). This gate keeps that honest: if the F# source changes
-      # without dist/ being rebuilt and committed, the build fails here.
-      - name: Assert committed dist matches the build
+      # .NET SDK), so this is the single source of truth: on pushes, CI
+      # commits a freshly built dist/ whenever it differs from the tracked
+      # one ([skip ci] prevents a re-trigger). The F# source always wins.
+      - name: Commit refreshed dist
+        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ -n "$(git status --porcelain dist)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add dist
+            git commit -m "chore: refresh dist from F# build [skip ci]"
+            git push origin "HEAD:refs/heads/$BRANCH"
+            echo "committed refreshed dist/"
+          else
+            echo "committed dist/ already matches the build"
+          fi
+
+      # On pull requests nothing may be committed, so a stale dist/ is a
+      # warning for reviewers, not a failure (CI refreshes it on push).
+      - name: Check dist freshness (pull requests)
+        if: github.event_name == 'pull_request'
         run: |
           if git ls-files dist --error-unmatch >/dev/null 2>&1; then
             if [ -n "$(git status --porcelain dist)" ]; then
-              echo "::error::dist/ is stale — run 'npm run build' and commit dist/"
-              git status --porcelain dist
-              exit 1
+              echo "::warning::dist/ is stale for this PR — CI refreshes it when the branch is pushed/merged."
             fi
-            echo "committed dist/ matches the fresh build"
           else
-            echo "dist/ not tracked yet — skipping drift check"
+            echo "::warning::dist/ is not tracked yet — CI commits it on the next push."
           fi
 
       - name: Install Playwright browser

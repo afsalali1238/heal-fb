@@ -37,9 +37,10 @@ Output: `dist/` — home plus one file per route. Open any page directly,
 no server needed.
 
 CI (`.github/workflows/build.yml`) does exactly the above on every push
-and pull request, runs the Playwright QA pass, uploads `dist/` as an
-artifact, and fails if the committed `dist/` has drifted from the F#
-source (see "Deploying" below).
+and pull request, runs the Playwright QA pass, and uploads `dist/` as an
+artifact. On pushes it also commits a freshly built `dist/` whenever the
+tracked one is stale (with `[skip ci]`), so the committed output can never
+silently disagree with the F# source (see "Deploying" below).
 
 ## Deploying (Vercel)
 
@@ -55,10 +56,10 @@ at `dist/`, no build command).
    empty/unset.
 3. Deploy. Every push to `main` redeploys the committed `dist/`.
 
-Workflow when content or figures change: run `npm run build` locally (or
-take the `dist` artifact from CI), commit the refreshed `dist/`, push.
-CI fails any push where `dist/` does not match a fresh build of the F#
-source, so the deployed files can never silently disagree with the code.
+Workflow when content or figures change: edit the F# (or islands), push.
+CI rebuilds from source and commits the refreshed `dist/` itself, which
+triggers the next Vercel deploy — no local .NET install required. If you
+do have the toolchain locally, `npm run build` reproduces the same files.
 
 The draft build ships with `robots.txt` blocking crawlers and a `noindex`
 meta tag on every page — deliberate, since nothing here is clinically
