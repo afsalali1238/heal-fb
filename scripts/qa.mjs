@@ -83,7 +83,7 @@ for (const route of ['', ...AREAS.map((a) => `${a}/`), 'find-my-area/', 'legal/'
     ok(await gate.locator('[data-cleared]').isVisible(), where, 'cleared line did not appear');
   }
 }
-metrics.pages = 3 + AREAS.length + 3;
+metrics.pages = AREAS.length + 5; // home + areas + gallery, legal, find-my-area, 404
 metrics.figures = figureTotal;
 
 // Locator blocking: grid hidden until the gate clears.

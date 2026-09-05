@@ -33,10 +33,48 @@ dotnet tool install --global fable   # once per machine; latest stable, delibera
 npm run build   # fable Client.fsproj --outDir build && node scripts/render.mjs
 ```
 
-Output: `dist/index.html` — open it directly, no server needed.
+Without the Fable toolchain, `npm run build` keeps the committed `dist/`
+untouched — useful on machines (like Vercel's build image) without .NET.
 
-CI (`.github/workflows/fable.yml`) does exactly the above on every push
-touching `physio-fable/**` and uploads `dist/` as an artifact.
+Output: `dist/` — home plus one file per route. Open any page directly,
+no server needed.
+
+CI (`.github/workflows/build.yml`) does exactly the above on every push
+and pull request, runs the Playwright QA pass, and uploads `dist/` as an
+artifact. On pushes it also commits a freshly built `dist/` whenever the
+tracked one is stale (with `[skip ci]`), so the committed output can never
+silently disagree with the F# source (see "Deploying" below).
+
+## Deploying (Vercel)
+
+Vercel's build image has no .NET SDK, so the F# compile cannot run there.
+That is fine: this project's rule is that patients receive plain files and
+F# never ships to a browser. So `dist/` — the rendered static site — is
+committed, and Vercel serves it verbatim (`vercel.json` points the output
+at `dist/`, no build command).
+
+1. Import this repository at [vercel.com](https://vercel.com) → New Project.
+2. The defaults work: `vercel.json` supplies the output directory, so the
+   framework preset, build command, and install command can all stay
+   empty/unset. **Root Directory must stay empty** — this repository is
+   standalone; the project root is the site root.
+3. Deploy. Every push to `main` redeploys the committed `dist/`.
+
+If the project was imported earlier from the monorepo layout, clear the
+saved Root Directory (Settings → General) and set the output directory to
+`dist` — otherwise deploys look for a directory that no longer exists
+(this project's was `anatomy-explorer`, the old Astro app folder). After
+changing settings, push a new commit: redeploying an old deployment can
+replay that deployment's original settings.
+
+Workflow when content or figures change: edit the F# (or islands), push.
+CI rebuilds from source and commits the refreshed `dist/` itself, which
+triggers the next Vercel deploy — no local .NET install required. If you
+do have the toolchain locally, `npm run build` reproduces the same files.
+
+The draft build ships with `robots.txt` blocking crawlers and a `noindex`
+meta tag on every page — deliberate, since nothing here is clinically
+reviewed yet. Remove both when the library is published for real.
 
 ## Architecture rules (carry over from the rebuild brief)
 
@@ -64,9 +102,8 @@ touching `physio-fable/**` and uploads `dist/` as an artifact.
   home, dedicated gate-first locator route (blocking island mode), home as
   a funnel, zero-empty-slots assertion on built output.
 
-Remaining (needs humans or a deploy, not more code): clinician review +
-countersign of all content and figures; a canonical public domain (unlocks
-QR codes, sitemap, absolute share URLs); real-browser pass incl. dark mode
-and no-JS run-through; deciding this line's future vs the Astro app
-(merge, replace, or retire one).
-- Slice 5: clinician review gallery; search; share/QR.
+Remaining (needs humans, not more code): clinician review + countersign of
+all content and figures; a canonical public domain (unlocks QR codes,
+sitemap, absolute share URLs); real-browser pass incl. dark mode and no-JS
+run-through on actual devices; deciding this line's future vs the Astro
+app (merge, replace, or retire one).

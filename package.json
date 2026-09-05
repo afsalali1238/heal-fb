@@ -6,7 +6,7 @@
   "scripts": {
     "fable": "fable Client.fsproj --outDir build",
     "render": "node scripts/render.mjs",
-    "build": "npm run fable && npm run render",
+    "build": "node scripts/build.mjs",
     "clean": "rm -rf build dist",
     "qa": "node scripts/qa.mjs"
   },
@@ -15,5 +15,8 @@
   },
   "devDependencies": {
     "playwright": "^1.49.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

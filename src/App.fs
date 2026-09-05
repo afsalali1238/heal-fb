@@ -40,7 +40,7 @@ let private thumbnailFor (areaId : string) : string =
     | [] -> ""
     | first :: _ ->
         let fig, _ = figureFor first.Id
-        let art = figureSvg fig None $"{areaId} area illustration"
+        let art = figureSvg fig None (attrEsc (areaId + " area illustration"))
         $"""<span class="thumb" aria-hidden="true">{art}</span>"""
 
 let private optRow (label : string) (fmt : int -> string) (value : int option) : string =
@@ -55,7 +55,7 @@ let private holdStatic (dose : Dose) : string =
 
 let private itemCard (item : Item) : string =
     let fig, arrow = figureFor item.Id
-    let art = figureSvg fig (Some arrow) item.ImageAlt
+    let art = figureSvg fig (Some arrow) (attrEsc item.ImageAlt)
     let sectionName =
         match item.Section with
         | Stretching -> "Stretch"
@@ -65,7 +65,7 @@ let private itemCard (item : Item) : string =
         + optRow "Repeat" (fun r -> $"{r} times") item.Dose.Reps
         + optRow "Sets" string item.Dose.Sets
         + (if item.Dose.EachSide then
-               """"<div class="d"><dt>Each side</dt><dd>Yes</dd></div>"""
+               """<div class="d"><dt>Each side</dt><dd>Yes</dd></div>"""
            else
                "")
     $"""<article class="item" id="{item.Id}">
@@ -264,8 +264,10 @@ let searchIndex () : string =
 let indexScript () : string =
     "<script type=\"application/json\" data-index>" + searchIndex () + "</scr" + "ipt>"
 
-let private layout (title : string) (depth : int) (scripts : string list) (body : string) : string =
-    let prefix = if depth = 0 then "" else "../"
+/// `prefix` is the path back to the site root: "" at the root, "../" one
+/// level down, and "/" for the 404 — which is served at arbitrary URLs, so
+/// its links must be absolute or they break under deep mistyped paths.
+let private layout (title : string) (depth : int) (prefix : string) (scripts : string list) (body : string) : string =
     let tags =
         scripts
         |> List.map (fun f -> $"""<script src="{prefix}{f}" defer></script>""")
@@ -275,6 +277,7 @@ let private layout (title : string) (depth : int) (scripts : string list) (body 
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
 <meta name="description" content="{title} — physiotherapy patient library demonstration build." />
 <title>{title} | Physiotherapy Patient Library (Fable demo)</title>
 <style>{pageCss}</style>
@@ -312,7 +315,7 @@ let renderHome () : string =
 <li>Choose the area your physiotherapist pointed to.</li>
 <li>Follow only the movements they went through with you.</li>
 </ol>"""
-    layout "Physiotherapy patient library" 0 [ "textsize.js"; "search.js" ] body
+    layout "Physiotherapy patient library" 0 "" [ "textsize.js"; "search.js" ] body
 
 /// Locator route: blocking safety gate, then the area grid. The grid is
 /// marked data-gated so the island keeps it hidden until the gate clears;
@@ -328,7 +331,7 @@ let renderFindMyArea () : string =
 <div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
 <div class="acards">{cards}</div>
 </div>"""
-    layout "Find your body area" 1 [ "gate.js"; "textsize.js"; "search.js" ] body
+    layout "Find your body area" 1 "../" [ "gate.js"; "textsize.js"; "search.js" ] body
 
 /// Legal notice: what this site is, what it is not, and what it remembers.
 let renderLegal () : string =
@@ -341,7 +344,7 @@ let renderLegal () : string =
 <div class="edu"><b>Your data stays yours</b><p>This site has no accounts and sends nothing anywhere. It remembers two preferences in your own browser only: text size and which items you marked done. Clearing your browser data removes them.</p></div>
 <div class="edu"><b>Draft content</b><p>Every exercise text and illustration here is a draft awaiting clinician review. Follow only what your physiotherapist personally went through with you.</p></div>
 <div class="edu"><b>Emergencies</b><p>Chest pain, trouble breathing, new numbness or weakness, or fainting are emergencies — seek urgent care, do not browse exercises.</p></div>"""
-    layout "Important notice" 1 [ "textsize.js" ] body
+    layout "Important notice" 1 "../" [ "textsize.js" ] body
 
 /// 404: no dead ends — every wrong turn offers the way home.
 let renderNotFound () : string =
@@ -349,7 +352,7 @@ let renderNotFound () : string =
         $"""<h1>That page is not here</h1>
 <p class="lede">The link may be old or mistyped. Your exercises are one tap away.</p>
 <a class="cta" href="/">All areas</a>"""
-    layout "Page not found" 0 [ "textsize.js" ] body
+    layout "Page not found" 0 "/" [ "textsize.js" ] body
 
 /// One area page. Unknown ids fail the build loudly, never a blank page.
 let renderArea (areaId : string) : string =
@@ -368,7 +371,7 @@ let renderArea (areaId : string) : string =
 <div class="starthere"><b>Start slowly</b> — perform only the movements your physiotherapist reviewed with you.</div>
 <p class="progress" data-progress role="status"></p>
 {cards}"""
-        layout area.Name 1 [ "gate.js"; "timers.js"; "done.js"; "share.js"; "textsize.js"; "search.js" ] body
+        layout area.Name 1 "../" [ "gate.js"; "timers.js"; "done.js"; "share.js"; "textsize.js"; "search.js" ] body
 
 /// Clinician review gallery: start/end figure pairs for every item,
 /// draft-badged, noindexed. NOT a patient route.
@@ -382,8 +385,8 @@ let renderGallery () : string =
         match specFor item.Id with
         | None -> failwith $"gallery: no figure spec for item \"{item.Id}\"."
         | Some spec ->
-            let start = figureSvg (buildFigure spec.Start) None (item.ImageAlt + " (start)")
-            let finish = figureSvg (buildFigure spec.End) (Some(arrowFor spec)) (item.ImageAlt + " (end)")
+            let start = figureSvg (buildFigure spec.Start) None (attrEsc (item.ImageAlt + " (start)"))
+            let finish = figureSvg (buildFigure spec.End) (Some(arrowFor spec)) (attrEsc (item.ImageAlt + " (end)"))
             $"""<section class="gal-card">
 <h3>{esc item.Id} · {esc item.Name}</h3>
 <p class="move">{esc item.Movement}</p>
@@ -399,7 +402,7 @@ let renderGallery () : string =
 <p><span class="badge">Draft · not clinically reviewed</span></p>
 <p class="lede">Deterministic schematics of each item's written movement, start and end positions side by side.</p>
 <div class="gal-grid">{cards}</div>"""
-    layout "Figure review gallery" 1 [ "textsize.js"; "search.js" ] body
+    layout "Figure review gallery" 1 "../" [ "textsize.js"; "search.js" ] body
 
 
 /// Backwards-compatible single-page render (kept for the demo artifact).
