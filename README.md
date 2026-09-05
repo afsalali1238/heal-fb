@@ -33,6 +33,9 @@ dotnet tool install --global fable   # once per machine; latest stable, delibera
 npm run build   # fable Client.fsproj --outDir build && node scripts/render.mjs
 ```
 
+Without the Fable toolchain, `npm run build` keeps the committed `dist/`
+untouched — useful on machines (like Vercel's build image) without .NET.
+
 Output: `dist/` — home plus one file per route. Open any page directly,
 no server needed.
 
