@@ -56,8 +56,13 @@ at `dist/`, no build command).
 1. Import this repository at [vercel.com](https://vercel.com) → New Project.
 2. The defaults work: `vercel.json` supplies the output directory, so the
    framework preset, build command, and install command can all stay
-   empty/unset.
+   empty/unset. **Root Directory must stay empty** — this repository is
+   standalone; the project root is the site root.
 3. Deploy. Every push to `main` redeploys the committed `dist/`.
+
+If the project was imported earlier from the monorepo layout, clear the
+saved Root Directory (Settings → General) and set the output directory to
+`dist` — otherwise deploys look for a directory that no longer exists.
 
 Workflow when content or figures change: edit the F# (or islands), push.
 CI rebuilds from source and commits the refreshed `dist/` itself, which
